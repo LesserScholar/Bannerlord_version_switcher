@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net6.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ilmerge" Version="3.0.29" />
+  </ItemGroup>
+	<Target Name="ILMerge">
+		<!-- the ILMergePath property points to the location of ILMerge.exe console application -->
+		<Exec Command="$(ILMergeConsolePath) bin\Release\net6.0-windows\Bannerlord_version_switcher.exe  /out:bannerlord_version_switcher_portable.exe bin\Release\net6.0-windows\Bannerlord_version_switcher.dll " />
+    </Target>
+</Project>

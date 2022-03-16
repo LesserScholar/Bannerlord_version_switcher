@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.32112.339
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bannerlord_version_switcher", "Bannerlord_version_switcher.csproj", "{A5D0DE6A-E768-4AB0-8A35-C1DE05150BAD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A5D0DE6A-E768-4AB0-8A35-C1DE05150BAD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A5D0DE6A-E768-4AB0-8A35-C1DE05150BAD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A5D0DE6A-E768-4AB0-8A35-C1DE05150BAD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A5D0DE6A-E768-4AB0-8A35-C1DE05150BAD}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {7E675A78-8B31-453C-8578-19E420CB7F1B}
+	EndGlobalSection
+EndGlobal
