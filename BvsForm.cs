@@ -20,7 +20,6 @@ namespace Bannerlord_version_switcher
             "Data",
             "GUI",
             "Icons",
-            "modding_resources",
             "music",
             "Shaders",
             "Sounds",
