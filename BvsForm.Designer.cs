@@ -40,7 +40,6 @@
             this.progressBar = new System.Windows.Forms.ProgressBar();
             this.progressLabel = new System.Windows.Forms.Label();
             this.label4 = new System.Windows.Forms.Label();
-            this.RefreshButton = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // steamDirTextBox
@@ -157,22 +156,11 @@
     ". Make sure you have enough disk space before creating a new copy.";
             this.label4.Click += new System.EventHandler(this.label4_Click);
             // 
-            // RefreshButton
-            // 
-            this.RefreshButton.Location = new System.Drawing.Point(378, 66);
-            this.RefreshButton.Name = "RefreshButton";
-            this.RefreshButton.Size = new System.Drawing.Size(75, 23);
-            this.RefreshButton.TabIndex = 12;
-            this.RefreshButton.Text = "Refresh";
-            this.RefreshButton.UseVisualStyleBackColor = true;
-            this.RefreshButton.Click += new System.EventHandler(this.Refresh_Click);
-            // 
             // BvsForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(1133, 546);
-            this.Controls.Add(this.RefreshButton);
             this.Controls.Add(this.label4);
             this.Controls.Add(this.progressLabel);
             this.Controls.Add(this.progressBar);
@@ -207,6 +195,5 @@
         private ProgressBar progressBar;
         private Label progressLabel;
         private Label label4;
-        private Button RefreshButton;
     }
 }

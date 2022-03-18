@@ -40,7 +40,8 @@ namespace Bannerlord_version_switcher
 
         static string ConfigPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "bannerlord_version_switch_config.txt");
 
-        BackgroundWorker worker = new BackgroundWorker();
+        static BackgroundWorker worker = new BackgroundWorker();
+        static System.Windows.Forms.Timer tick = new System.Windows.Forms.Timer();
 
         public BvsForm()
         {
@@ -48,6 +49,7 @@ namespace Bannerlord_version_switcher
         }
         private void BvsForm_Load(object sender, EventArgs e)
         {
+
             this.Text = "Bannerlord Version Switcher for Steam";
             if (File.Exists(ConfigPath))
             {
@@ -79,11 +81,19 @@ namespace Bannerlord_version_switcher
                     Application.Exit();
                 }
             }
+            tick.Tick += Tick;
+            tick.Interval = 10000;
+            tick.Start();
 
             ScanSteamPath();
         }
 
-        static bool TryGetCurrentVersion(string path, out string version)
+        private void Tick(object? sender, EventArgs e)
+        {
+            ScanSteamPath();
+        }
+
+        static bool TryReadVersionFromAppmanifest(string path, out string version)
         {
             version = "";
             var file = Path.Combine(path, AppmanifestFilename);
@@ -148,10 +158,15 @@ namespace Bannerlord_version_switcher
         void ScanSteamPath()
         {
             PopulateSnapshots(SteamPath);
+            string oldVersion = InstalledVersion;
             string currentVersion;
-            if (TryGetCurrentVersion(SteamPath, out currentVersion))
+            if (TryReadVersionFromAppmanifest(SteamPath, out currentVersion))
             {
                 installedVersionLabel.Text = currentVersion;
+                if (currentVersion != oldVersion)
+                {
+                    installedVersionLabel.Text = currentVersion;
+                }
                 scanOk = true;
             }
             else
@@ -212,6 +227,21 @@ namespace Bannerlord_version_switcher
                 this.targetGamePath = targetGamePath;
             }
         }
+        public struct WorkResult
+        {
+            public WorkResult()
+            {
+                success = true;
+                msg = "";
+            }
+            public WorkResult(string msg)
+            {
+                success = false;
+                this.msg = msg;
+            }
+            public bool success;
+            public string msg;
+        }
         bool guardInteraction()
         {
             if (worker.IsBusy) return true;
@@ -252,23 +282,43 @@ namespace Bannerlord_version_switcher
 
         private void createSnapshotCompleted(object? sender, RunWorkerCompletedEventArgs e)
         {
-            progressLabel.Text = "Copy Done";
-            ProgressBarStop();
-            ScanSteamPath();
+            if (e.Result is WorkResult r)
+            {
+                if (r.success)
+                {
+                    progressLabel.Text = "Copy Done";
+                } else
+                {
+                    progressLabel.Text = r.msg;
+                }
+                ProgressBarStop();
+                ScanSteamPath();
+            }
         }
 
         private void createSnapshotDoWork(object? sender, DoWorkEventArgs e)
         {
-            var arg = e.Argument;
-            if (arg == null) return;
-            if (arg is CopyWorkItem work)
+            try
             {
-                if (Directory.Exists(work.targetGamePath)) Directory.Delete(work.targetGamePath, true);
-                Directory.CreateDirectory(work.targetGamePath);
-                foreach (var d in snapshotDirs)
+                var arg = e.Argument;
+                if (arg == null) return;
+                if (arg is CopyWorkItem work)
                 {
-                    RecursiveCopy(Path.Combine(work.gamePath, d), Path.Combine(work.targetGamePath, d));
+                    if (Directory.Exists(work.targetGamePath)) Directory.Delete(work.targetGamePath, true);
+                    Directory.CreateDirectory(work.targetGamePath);
+                    foreach (var d in snapshotDirs)
+                    {
+                        var sourcePath = Path.Combine(work.gamePath, d);
+                        if (Directory.Exists(sourcePath))
+                        {
+                            RecursiveCopy(sourcePath, Path.Combine(work.targetGamePath, d));
+                        }
+                    }
                 }
+                e.Result = new WorkResult();
+            } catch (Exception ex)
+            {
+                e.Result = new WorkResult("Copy failed: " + ex.Message);
             }
         }
 
@@ -356,10 +406,6 @@ namespace Bannerlord_version_switcher
             return Process.GetProcessesByName("steam").Length > 0 || Process.GetProcessesByName("steamservice").Length > 0;
         }
 
-        private void Refresh_Click(object sender, EventArgs e)
-        {
-            ScanSteamPath();
-        }
         private string GameDirFromVersion(string str)
         {
             return Path.Combine(SteamPath, "common", String.Format(magicStringFormat, str, GameDirName));
