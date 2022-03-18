@@ -30,22 +30,21 @@ namespace Bannerlord_version_switcher
             @"Modules\StoryMode",
             @"Modules\CustomBattle",
         };
-        static string AppmanifestFilename => "appmanifest_261550.acf";
-        static string GameDirName => "Mount & Blade II Bannerlord";
+        const string AppmanifestFilename = "appmanifest_261550.acf";
+        const string GameDirName = "Mount & Blade II Bannerlord";
 
-        static string magicStringPrefix = "bannerlord_version_switcher(";
-        static string magicStringFormat = "bannerlord_version_switcher({0}){1}";
+        const string magicStringPrefix = "bannerlord_version_switcher(";
+        const string magicStringFormat = "bannerlord_version_switcher({0}){1}";
 
         bool scanOk = false;
 
-        string ConfigPath;
+        static string ConfigPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "bannerlord_version_switch_config.txt");
 
         BackgroundWorker worker = new BackgroundWorker();
 
         public BvsForm()
         {
             InitializeComponent();
-            ConfigPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "bannerlord_version_switch_config.txt");
         }
         private void BvsForm_Load(object sender, EventArgs e)
         {
@@ -57,7 +56,8 @@ namespace Bannerlord_version_switcher
                 {
                     steamDirTextBox.Text = configStr;
                 }
-            } else
+            }
+            else
             {
                 var result = MessageBox.Show("This software is provided WITHOUT WARRANTY OF ANY KIND.\n" +
                     "Doing file operations on Windows is kind of hot garbage and I'm sure there are edge cases where it fails spectacularly.\n" +
@@ -68,10 +68,13 @@ namespace Bannerlord_version_switcher
                     try
                     {
                         File.WriteAllText(ConfigPath, steamDirTextBox.Text);
-                    } catch { 
+                    }
+                    catch
+                    {
                         progressLabel.Text = "Unable to write config file. You'll get the warning message again next time...";
                     }
-                } else
+                }
+                else
                 {
                     Application.Exit();
                 }
@@ -160,13 +163,15 @@ namespace Bannerlord_version_switcher
 
         private void steamVersionTextBox_TextChanged(object sender, EventArgs e)
         {
-            try {
+            try
+            {
                 File.WriteAllText(ConfigPath, steamDirTextBox.Text);
-            } catch
+            }
+            catch
             {
                 progressLabel.Text = "Unable to write config. Steamapps path will not be saved.";
             }
-            
+
             ScanSteamPath();
         }
 
@@ -221,7 +226,7 @@ namespace Bannerlord_version_switcher
         private void createSnapshot(object sender, EventArgs e)
         {
             if (guardInteraction()) return;
-            
+
             if (Versions(SteamPath).Contains(InstalledVersion))
             {
                 progressLabel.Text = "Snapshot with this version already exists! Did nothing.";
@@ -290,7 +295,8 @@ namespace Bannerlord_version_switcher
 
         private void deleteDoWork(object? sender, DoWorkEventArgs e)
         {
-            if (e.Argument is string dir) {
+            if (e.Argument is string dir)
+            {
                 if (Directory.Exists(dir))
                 {
                     Directory.Delete(dir, true);
@@ -309,14 +315,15 @@ namespace Bannerlord_version_switcher
             }
             if (IsSteamRunning())
             {
-                var result = MessageBox.Show("Looks like Steam is running. I recommend you close Steam before swapping or else it might get confused.\n\n"+
+                var result = MessageBox.Show("Looks like Steam is running. I recommend you close Steam before swapping or else it might get confused.\n\n" +
                     "Make sure it is actually closed and not just minimized.",
                     "Confirm swap", MessageBoxButtons.OKCancel);
                 if (result == DialogResult.Cancel) return;
             }
             var steamManifest = Path.Combine(SteamPath, AppmanifestFilename);
             var steamGame = Path.Combine(SteamPath, "common", GameDirName);
-            try {
+            try
+            {
                 var targetDir = GameDirFromVersion(InstalledVersion);
                 if (Directory.Exists(targetDir)) Directory.Delete(targetDir, true);
                 Directory.CreateDirectory(Path.Combine(targetDir, "Modules"));
@@ -325,7 +332,8 @@ namespace Bannerlord_version_switcher
                     Directory.Move(Path.Combine(steamGame, d), Path.Combine(targetDir, d));
                 }
                 File.Move(steamManifest, AppmanifestFromVersion(InstalledVersion));
-            } catch
+            }
+            catch
             {
                 MessageBox.Show("Version switcher was unable to move the game files. This is usually caused by another program keeping the files open. Close " +
                     "Visual Studio, Explorer.exe or any other programs that might have the files open.\n\nIf you are having hard time figuring what is holding the files, " +
