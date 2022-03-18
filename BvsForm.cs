@@ -43,6 +43,53 @@ namespace Bannerlord_version_switcher
         static BackgroundWorker worker = new BackgroundWorker();
         static System.Windows.Forms.Timer tick = new System.Windows.Forms.Timer();
 
+        private bool IsSteamRunning()
+        {
+            return Process.GetProcessesByName("steam").Length > 0 || Process.GetProcessesByName("steamservice").Length > 0;
+        }
+
+        private string GameDirFromVersion(string str)
+        {
+            return Path.Combine(SteamPath, "common", String.Format(magicStringFormat, str, GameDirName));
+        }
+
+        private string AppmanifestFromVersion(string str)
+        {
+            return Path.Combine(SteamPath, String.Format(magicStringFormat, str, AppmanifestFilename));
+        }
+
+        //=========================
+        // UI STUFF
+        //=========================
+
+        bool guardInteraction()
+        {
+            if (worker.IsBusy) return true;
+
+            if (!scanOk)
+            {
+                progressLabel.Text = "Check steam path";
+                return true;
+            }
+            return false;
+        }
+        string SteamPath => steamDirTextBox.Text;
+        string InstalledVersion => installedVersionLabel.Text;
+        string SelectedVersion => snapshotView.SelectedItem as string ?? "";
+
+        void ProgressBarAnimate()
+        {
+            progressBar.Style = ProgressBarStyle.Marquee;
+            progressBar.MarqueeAnimationSpeed = 30;
+        }
+        void ProgressBarStop()
+        {
+            progressBar.Style = ProgressBarStyle.Continuous;
+        }
+
+        //=========================
+        // INIT
+        //=========================
         public BvsForm()
         {
             InitializeComponent();
@@ -93,6 +140,9 @@ namespace Bannerlord_version_switcher
             ScanSteamPath();
         }
 
+        //=========================
+        // DIR SCAN
+        //=========================
         static bool TryReadVersionFromAppmanifest(string path, out string version)
         {
             version = "";
@@ -150,10 +200,6 @@ namespace Bannerlord_version_switcher
                 snapshotView.Items.Add(v);
             }
         }
-        string SteamPath => steamDirTextBox.Text;
-        string InstalledVersion => installedVersionLabel.Text;
-
-        string SelectedVersion => snapshotView.SelectedItem as string ?? "";
 
         void ScanSteamPath()
         {
@@ -190,6 +236,9 @@ namespace Bannerlord_version_switcher
             ScanSteamPath();
         }
 
+        //=========================
+        // CREATE SNAPSHOT
+        //=========================
         private static void RecursiveCopy(string source, string target)
         {
             var jobs = new List<(string, string)>();
@@ -204,16 +253,6 @@ namespace Bannerlord_version_switcher
             }
             ParallelOptions options = new ParallelOptions { MaxDegreeOfParallelism = 6 };
             Parallel.ForEach(jobs, (job, i) => File.Copy(job.Item1, job.Item2));
-        }
-
-        void ProgressBarAnimate()
-        {
-            progressBar.Style = ProgressBarStyle.Marquee;
-            progressBar.MarqueeAnimationSpeed = 30;
-        }
-        void ProgressBarStop()
-        {
-            progressBar.Style = ProgressBarStyle.Continuous;
         }
 
         struct CopyWorkItem
@@ -242,17 +281,7 @@ namespace Bannerlord_version_switcher
             public bool success;
             public string msg;
         }
-        bool guardInteraction()
-        {
-            if (worker.IsBusy) return true;
 
-            if (!scanOk)
-            {
-                progressLabel.Text = "Check steam path";
-                return true;
-            }
-            return false;
-        }
         private void createSnapshot(object sender, EventArgs e)
         {
             if (guardInteraction()) return;
@@ -287,9 +316,11 @@ namespace Bannerlord_version_switcher
                 if (r.success)
                 {
                     progressLabel.Text = "Copy Done";
-                } else
+                }
+                else
                 {
                     progressLabel.Text = r.msg;
+                    deleteVersionSnapshot(InstalledVersion, true);
                 }
                 ProgressBarStop();
                 ScanSteamPath();
@@ -316,24 +347,42 @@ namespace Bannerlord_version_switcher
                     }
                 }
                 e.Result = new WorkResult();
-            } catch (Exception ex)
+            }
+            catch (Exception ex)
             {
                 e.Result = new WorkResult("Copy failed: " + ex.Message);
             }
         }
 
-
+        //=========================
+        // DELETE SNAPSHOT
+        //=========================
         private void deleteSelectedSnapshot(object sender, EventArgs e)
         {
             if (guardInteraction()) return;
             if (SelectedVersion.Length == 0) return;
-            File.Delete(AppmanifestFromVersion(SelectedVersion));
+            deleteVersionSnapshot(SelectedVersion);
+        }
+
+        private void deleteVersionSnapshot(string snapshotVersion, bool silent = false)
+        {
+            File.Delete(AppmanifestFromVersion(snapshotVersion));
             ProgressBarAnimate();
-            progressLabel.Text = "Deleting";
+            if (!silent)
+                progressLabel.Text = "Deleting";
 
             worker.DoWork += deleteDoWork;
-            worker.RunWorkerCompleted += deleteComplete;
-            worker.RunWorkerAsync(GameDirFromVersion(SelectedVersion));
+            if (silent)
+                worker.RunWorkerCompleted += deleteCompleteSilent;
+            else
+                worker.RunWorkerCompleted += deleteComplete;
+            worker.RunWorkerAsync(GameDirFromVersion(snapshotVersion));
+        }
+
+        private void deleteCompleteSilent(object? sender, RunWorkerCompletedEventArgs e)
+        {
+            ProgressBarStop();
+            ScanSteamPath();
         }
 
         private void deleteComplete(object? sender, RunWorkerCompletedEventArgs e)
@@ -354,6 +403,9 @@ namespace Bannerlord_version_switcher
             }
         }
 
+        //=========================
+        // SWAP SNAPSHOTS
+        //=========================
         private void SwapSnapshot(object sender, EventArgs e)
         {
             guardInteraction();
@@ -399,46 +451,6 @@ namespace Bannerlord_version_switcher
                 }
             }
             ScanSteamPath();
-        }
-
-        private bool IsSteamRunning()
-        {
-            return Process.GetProcessesByName("steam").Length > 0 || Process.GetProcessesByName("steamservice").Length > 0;
-        }
-
-        private string GameDirFromVersion(string str)
-        {
-            return Path.Combine(SteamPath, "common", String.Format(magicStringFormat, str, GameDirName));
-        }
-
-        private string AppmanifestFromVersion(string str)
-        {
-            return Path.Combine(SteamPath, String.Format(magicStringFormat, str, AppmanifestFilename));
-        }
-
-        private void label1_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void label2_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void label3_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void label4_Click(object sender, EventArgs e)
-        {
-
-        }
-
-        private void button1_Click_1(object sender, EventArgs e)
-        {
-
         }
 
     }

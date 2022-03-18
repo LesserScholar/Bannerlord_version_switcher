@@ -59,7 +59,6 @@
             this.label1.Size = new System.Drawing.Size(116, 15);
             this.label1.TabIndex = 1;
             this.label1.Text = "Steamapps Directory";
-            this.label1.Click += new System.EventHandler(this.label1_Click);
             // 
             // createSnapshotButton
             // 
@@ -79,7 +78,6 @@
             this.label2.Size = new System.Drawing.Size(138, 15);
             this.label2.TabIndex = 3;
             this.label2.Text = "Current installed version:";
-            this.label2.Click += new System.EventHandler(this.label2_Click);
             // 
             // installedVersionLabel
             // 
@@ -107,7 +105,6 @@
             this.label3.Size = new System.Drawing.Size(97, 15);
             this.label3.TabIndex = 6;
             this.label3.Text = "Saved snapshots:";
-            this.label3.Click += new System.EventHandler(this.label3_Click);
             // 
             // loadSnapshot
             // 
@@ -154,7 +151,6 @@
             this.label4.TabIndex = 11;
             this.label4.Text = "NOTE: Snapshots take A LOT of disk space. It copies all the game files and assets" +
     ". Make sure you have enough disk space before creating a new copy.";
-            this.label4.Click += new System.EventHandler(this.label4_Click);
             // 
             // BvsForm
             // 
