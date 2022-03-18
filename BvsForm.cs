@@ -48,14 +48,14 @@ namespace Bannerlord_version_switcher
             return Process.GetProcessesByName("steam").Length > 0 || Process.GetProcessesByName("steamservice").Length > 0;
         }
 
-        private string GameDirFromVersion(string str)
+        private string SnapshotGameDirFromVersion(string storage, string version)
         {
-            return Path.Combine(SteamPath, "common", String.Format(magicStringFormat, str, GameDirName));
+            return Path.Combine(storage, "common", String.Format(magicStringFormat, version, GameDirName));
         }
 
-        private string AppmanifestFromVersion(string str)
+        private string SnapshotAppmanifestFromVersion(string storage, string version)
         {
-            return Path.Combine(SteamPath, String.Format(magicStringFormat, str, AppmanifestFilename));
+            return Path.Combine(storage, String.Format(magicStringFormat, version, AppmanifestFilename));
         }
 
         //=========================
@@ -74,8 +74,10 @@ namespace Bannerlord_version_switcher
             return false;
         }
         string SteamPath => steamDirTextBox.Text;
+        string CustomStoragePath => customStorageTextbox.Text;
         string InstalledVersion => installedVersionLabel.Text;
         string SelectedVersion => snapshotView.SelectedItem as string ?? "";
+        string SnapshotStorage => customStorageCheckbox.Checked ? CustomStoragePath : SteamPath;
 
         void ProgressBarAnimate()
         {
@@ -85,6 +87,23 @@ namespace Bannerlord_version_switcher
         void ProgressBarStop()
         {
             progressBar.Style = ProgressBarStyle.Continuous;
+        }
+        private void useCustomStorageCheckboxChanged(object sender, EventArgs e)
+        {
+            ScanSteamAndSnapshots();
+        }
+
+        private void configChanged(object sender, EventArgs e)
+        {
+            ScanSteamAndSnapshots();
+            try
+            {
+                WriteConfig();
+            }
+            catch
+            {
+                progressLabel.Text = "Unable to write config file. Changes to paths are not saved.";
+            }
         }
 
         //=========================
@@ -100,11 +119,11 @@ namespace Bannerlord_version_switcher
             this.Text = "Bannerlord Version Switcher for Steam";
             if (File.Exists(ConfigPath))
             {
-                string configStr = File.ReadAllText(ConfigPath, Encoding.UTF8).Trim();
-                if (configStr.Length > 0)
-                {
-                    steamDirTextBox.Text = configStr;
-                }
+                string[] config = File.ReadAllLines(ConfigPath);
+                if (config.Length > 0)
+                    steamDirTextBox.Text = config[0].Trim();
+                if (config.Length > 1)
+                    customStorageTextbox.Text = config[1].Trim();
             }
             else
             {
@@ -116,7 +135,7 @@ namespace Bannerlord_version_switcher
                 {
                     try
                     {
-                        File.WriteAllText(ConfigPath, steamDirTextBox.Text);
+                        WriteConfig();
                     }
                     catch
                     {
@@ -132,12 +151,23 @@ namespace Bannerlord_version_switcher
             tick.Interval = 10000;
             tick.Start();
 
-            ScanSteamPath();
+            ScanSteamAndSnapshots();
+        }
+
+        private void WriteConfig()
+        {
+            List<string> list = new List<string>();
+            list.Add(steamDirTextBox.Text);
+            list.Add(customStorageTextbox.Text);
+            File.WriteAllLines(ConfigPath, list);
         }
 
         private void Tick(object? sender, EventArgs e)
         {
-            ScanSteamPath();
+            if (!worker.IsBusy)
+            {
+                ScanSteamAndSnapshots();
+            }
         }
 
         //=========================
@@ -175,12 +205,12 @@ namespace Bannerlord_version_switcher
             }
             return false;
         }
-        List<string> Versions(string steamPath)
+        List<string> Versions()
         {
             List<string> result = new List<string>();
-            if (Directory.Exists(steamPath))
+            if (Directory.Exists(SnapshotStorage))
             {
-                foreach (var f in Directory.EnumerateFiles(steamPath))
+                foreach (var f in Directory.EnumerateFiles(SnapshotStorage))
                 {
                     string version;
                     if (TryExtractVersionFromPath(f, out version))
@@ -192,69 +222,48 @@ namespace Bannerlord_version_switcher
             return result;
         }
 
-        private void PopulateSnapshots(string steamPath)
+        private void PopulateSnapshots()
         {
-            snapshotView.Items.Clear();
-            foreach (var v in Versions(steamPath))
+            var oldVersions = new HashSet<string>();
+            foreach (var v in snapshotView.Items)
             {
-                snapshotView.Items.Add(v);
+                oldVersions.Add((string)v);
             }
+            foreach (var v in Versions())
+            {
+                if (!oldVersions.Contains(v))
+                    snapshotView.Items.Add(v);
+                else oldVersions.Remove(v);
+            }
+            var toRemove = new List<object>();
+            foreach (var v in snapshotView.Items)
+            {
+                if (oldVersions.Contains(v))
+                    toRemove.Add(v);
+            }
+            foreach (var v in toRemove)
+                snapshotView.Items.Remove(v);
         }
 
-        void ScanSteamPath()
+        void ScanSteamAndSnapshots()
         {
-            PopulateSnapshots(SteamPath);
-            string oldVersion = InstalledVersion;
+            PopulateSnapshots();
             string currentVersion;
             if (TryReadVersionFromAppmanifest(SteamPath, out currentVersion))
             {
                 installedVersionLabel.Text = currentVersion;
-                if (currentVersion != oldVersion)
-                {
-                    installedVersionLabel.Text = currentVersion;
-                }
                 scanOk = true;
             }
             else
             {
-                installedVersionLabel.Text = "Can't find Steamapps";
+                installedVersionLabel.Text = "Can't find Bannerlord installation in given folder";
                 scanOk = false;
             }
-        }
-
-        private void steamVersionTextBox_TextChanged(object sender, EventArgs e)
-        {
-            try
-            {
-                File.WriteAllText(ConfigPath, steamDirTextBox.Text);
-            }
-            catch
-            {
-                progressLabel.Text = "Unable to write config. Steamapps path will not be saved.";
-            }
-
-            ScanSteamPath();
         }
 
         //=========================
         // CREATE SNAPSHOT
         //=========================
-        private static void RecursiveCopy(string source, string target)
-        {
-            var jobs = new List<(string, string)>();
-            Directory.CreateDirectory(target);
-            foreach (var d in Directory.GetDirectories(source))
-            {
-                RecursiveCopy(d, Path.Combine(target, Path.GetFileName(d)));
-            }
-            foreach (var f in Directory.GetFiles(source))
-            {
-                jobs.Add((f, Path.Combine(target, Path.GetFileName(f))));
-            }
-            ParallelOptions options = new ParallelOptions { MaxDegreeOfParallelism = 6 };
-            Parallel.ForEach(jobs, (job, i) => File.Copy(job.Item1, job.Item2));
-        }
-
         struct CopyWorkItem
         {
             public string gamePath;
@@ -281,53 +290,35 @@ namespace Bannerlord_version_switcher
             public bool success;
             public string msg;
         }
-
         private void createSnapshot(object sender, EventArgs e)
         {
             if (guardInteraction()) return;
 
-            if (Versions(SteamPath).Contains(InstalledVersion))
+            if (Versions().Contains(InstalledVersion))
             {
                 progressLabel.Text = "Snapshot with this version already exists! Did nothing.";
                 return;
             }
             var appmanifestPath = Path.Combine(SteamPath, AppmanifestFilename);
             var gamePath = Path.Combine(SteamPath, "common", GameDirName);
-            var targetGamePath = Path.Combine(SteamPath, "common", String.Format(magicStringFormat, InstalledVersion, GameDirName));
+            var targetGamePath = SnapshotGameDirFromVersion(SnapshotStorage, InstalledVersion);
             if (!File.Exists(appmanifestPath) || !Directory.Exists(gamePath))
             {
                 progressLabel.Text = "Did not find gamefiles. Something weird happened.";
                 return;
             }
-            File.Copy(appmanifestPath, Path.Combine(SteamPath, String.Format(magicStringFormat, InstalledVersion, AppmanifestFilename)));
+            Directory.CreateDirectory(SnapshotStorage);
+            File.Copy(appmanifestPath, SnapshotAppmanifestFromVersion(SnapshotStorage, InstalledVersion));
 
             ProgressBarAnimate();
             progressLabel.Text = "Copying";
 
-            worker.DoWork += createSnapshotDoWork;
+            worker = new BackgroundWorker();
+            worker.DoWork += copyDoWork;
             worker.RunWorkerCompleted += createSnapshotCompleted;
             worker.RunWorkerAsync(new CopyWorkItem(gamePath, targetGamePath));
         }
-
-        private void createSnapshotCompleted(object? sender, RunWorkerCompletedEventArgs e)
-        {
-            if (e.Result is WorkResult r)
-            {
-                if (r.success)
-                {
-                    progressLabel.Text = "Copy Done";
-                }
-                else
-                {
-                    progressLabel.Text = r.msg;
-                    deleteVersionSnapshot(InstalledVersion, true);
-                }
-                ProgressBarStop();
-                ScanSteamPath();
-            }
-        }
-
-        private void createSnapshotDoWork(object? sender, DoWorkEventArgs e)
+        private void copyDoWork(object? sender, DoWorkEventArgs e)
         {
             try
             {
@@ -335,7 +326,6 @@ namespace Bannerlord_version_switcher
                 if (arg == null) return;
                 if (arg is CopyWorkItem work)
                 {
-                    if (Directory.Exists(work.targetGamePath)) Directory.Delete(work.targetGamePath, true);
                     Directory.CreateDirectory(work.targetGamePath);
                     foreach (var d in snapshotDirs)
                     {
@@ -353,6 +343,102 @@ namespace Bannerlord_version_switcher
                 e.Result = new WorkResult("Copy failed: " + ex.Message);
             }
         }
+        private static void RecursiveCopy(string source, string target)
+        {
+            try
+            {
+                var jobs = new List<(string, string)>();
+                if (Directory.Exists(target)) Directory.Delete(target, true);
+                Directory.CreateDirectory(target);
+                foreach (var d in Directory.GetDirectories(source))
+                {
+                    RecursiveCopy(d, Path.Combine(target, Path.GetFileName(d)));
+                }
+                foreach (var f in Directory.GetFiles(source))
+                {
+                    jobs.Add((f, Path.Combine(target, Path.GetFileName(f))));
+                }
+                foreach (var job in jobs)
+                {
+                    File.Copy(job.Item1, job.Item2);
+                }
+            }
+            catch
+            {
+                throw;
+            }
+        }
+
+        private void createSnapshotCompleted(object? sender, RunWorkerCompletedEventArgs e)
+        {
+            if (e.Result is WorkResult r)
+            {
+                if (r.success)
+                {
+                    progressLabel.Text = "Copy Done";
+                }
+                else
+                {
+                    progressLabel.Text = r.msg;
+                    deleteVersionSnapshot(InstalledVersion, true);
+                }
+                ProgressBarStop();
+                ScanSteamAndSnapshots();
+            }
+        }
+
+        //=========================
+        // RESTORE SNAPSHOT
+        //=========================
+        private void RestoreClicked(object sender, EventArgs e)
+        {
+            if (guardInteraction()) return;
+
+            if (IsSteamRunning())
+            {
+                var result = MessageBox.Show("Looks like Steam is running. I recommend you close Steam before overriding game files or else it might get confused.\n\n" +
+                    "Make sure it is actually closed and not just minimized.",
+                    "Confirm restore", MessageBoxButtons.OKCancel);
+                if (result == DialogResult.Cancel) return;
+            }
+
+            var gamePath = Path.Combine(SteamPath, "common", GameDirName);
+            var sourceGamePath = Path.Combine(SnapshotStorage, "common", String.Format(magicStringFormat, SelectedVersion, GameDirName));
+            
+            ProgressBarAnimate();
+            progressLabel.Text = "Copying";
+
+            worker = new BackgroundWorker();
+            worker.DoWork += copyDoWork;
+            worker.RunWorkerCompleted += RestoreCompleted;
+            worker.RunWorkerAsync(new CopyWorkItem(sourceGamePath, gamePath));
+        }
+
+        private void RestoreCompleted(object? sender, RunWorkerCompletedEventArgs e)
+        {
+            if (e.Result is WorkResult r)
+            {
+                if (r.success)
+                {
+                    try
+                    {
+                        var appmanifestPath = Path.Combine(SteamPath, AppmanifestFilename);
+                        File.Delete(appmanifestPath);
+                        File.Copy(SnapshotAppmanifestFromVersion(SnapshotStorage, SelectedVersion), appmanifestPath);
+                        progressLabel.Text = "Restore Done";
+                    }
+                    catch (Exception ex) {
+                        progressLabel.Text = "Restore failed: " + ex.Message;
+                    }
+                }
+                else
+                {
+                    progressLabel.Text = r.msg;
+                }
+                ProgressBarStop();
+                ScanSteamAndSnapshots();
+            }
+        }
 
         //=========================
         // DELETE SNAPSHOT
@@ -366,30 +452,31 @@ namespace Bannerlord_version_switcher
 
         private void deleteVersionSnapshot(string snapshotVersion, bool silent = false)
         {
-            File.Delete(AppmanifestFromVersion(snapshotVersion));
+            File.Delete(SnapshotAppmanifestFromVersion(SnapshotStorage, snapshotVersion));
             ProgressBarAnimate();
             if (!silent)
                 progressLabel.Text = "Deleting";
 
+            worker = new BackgroundWorker();
             worker.DoWork += deleteDoWork;
             if (silent)
                 worker.RunWorkerCompleted += deleteCompleteSilent;
             else
                 worker.RunWorkerCompleted += deleteComplete;
-            worker.RunWorkerAsync(GameDirFromVersion(snapshotVersion));
+            worker.RunWorkerAsync(SnapshotGameDirFromVersion(SnapshotStorage, snapshotVersion));
         }
 
         private void deleteCompleteSilent(object? sender, RunWorkerCompletedEventArgs e)
         {
             ProgressBarStop();
-            ScanSteamPath();
+            ScanSteamAndSnapshots();
         }
 
         private void deleteComplete(object? sender, RunWorkerCompletedEventArgs e)
         {
             progressLabel.Text = "Delete Done";
             ProgressBarStop();
-            ScanSteamPath();
+            ScanSteamAndSnapshots();
         }
 
         private void deleteDoWork(object? sender, DoWorkEventArgs e)
@@ -406,13 +493,19 @@ namespace Bannerlord_version_switcher
         //=========================
         // SWAP SNAPSHOTS
         //=========================
+
         private void SwapSnapshot(object sender, EventArgs e)
         {
             guardInteraction();
             if (SelectedVersion.Length == 0) return;
-            if (Versions(SteamPath).Contains(InstalledVersion))
+            if (snapshotView.Items.Contains(InstalledVersion))
             {
                 progressLabel.Text = "Version current installed in Steam already exists as a snapshot. Not swapping. The idea is that you should only have one copy of each version. Please either update your game or delete the snapshot.";
+                return;
+            }
+            if (SnapshotStorage[0] != SteamPath[0])
+            {
+                MessageBox.Show("Swapping doesn't work between different storage devices. You need to use create snapshot, restore snapshot and delete to get your desired effect.");
                 return;
             }
             if (IsSteamRunning())
@@ -426,14 +519,14 @@ namespace Bannerlord_version_switcher
             var steamGame = Path.Combine(SteamPath, "common", GameDirName);
             try
             {
-                var targetDir = GameDirFromVersion(InstalledVersion);
+                var targetDir = SnapshotGameDirFromVersion(SnapshotStorage, InstalledVersion);
                 if (Directory.Exists(targetDir)) Directory.Delete(targetDir, true);
                 Directory.CreateDirectory(Path.Combine(targetDir, "Modules"));
                 foreach (var d in snapshotDirs)
                 {
                     Directory.Move(Path.Combine(steamGame, d), Path.Combine(targetDir, d));
                 }
-                File.Move(steamManifest, AppmanifestFromVersion(InstalledVersion));
+                File.Move(steamManifest, SnapshotAppmanifestFromVersion(SnapshotStorage, InstalledVersion));
             }
             catch
             {
@@ -443,15 +536,14 @@ namespace Bannerlord_version_switcher
                 return;
             }
             {
-                File.Move(AppmanifestFromVersion(SelectedVersion), steamManifest);
-                var sourceDir = GameDirFromVersion(SelectedVersion);
+                File.Move(SnapshotAppmanifestFromVersion(SnapshotStorage, SelectedVersion), steamManifest);
+                var sourceDir = SnapshotGameDirFromVersion(SnapshotStorage, SelectedVersion);
                 foreach (var d in snapshotDirs)
                 {
                     Directory.Move(Path.Combine(sourceDir, d), Path.Combine(steamGame, d));
                 }
             }
-            ScanSteamPath();
+            ScanSteamAndSnapshots();
         }
-
     }
 }
