@@ -118,7 +118,7 @@
             this.loadSnapshot.Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point);
             this.loadSnapshot.Location = new System.Drawing.Point(36, 461);
             this.loadSnapshot.Name = "loadSnapshot";
-            this.loadSnapshot.Size = new System.Drawing.Size(357, 32);
+            this.loadSnapshot.Size = new System.Drawing.Size(376, 32);
             this.loadSnapshot.TabIndex = 7;
             this.loadSnapshot.Text = "Swap current installation with the selected snapshot";
             this.loadSnapshot.UseVisualStyleBackColor = true;
@@ -126,7 +126,7 @@
             // 
             // deleteSnapshot
             // 
-            this.deleteSnapshot.Location = new System.Drawing.Point(823, 470);
+            this.deleteSnapshot.Location = new System.Drawing.Point(834, 470);
             this.deleteSnapshot.Name = "deleteSnapshot";
             this.deleteSnapshot.Size = new System.Drawing.Size(272, 23);
             this.deleteSnapshot.TabIndex = 8;
@@ -183,7 +183,7 @@
             // 
             // replaceWithSnapshot
             // 
-            this.replaceWithSnapshot.Location = new System.Drawing.Point(476, 470);
+            this.replaceWithSnapshot.Location = new System.Drawing.Point(533, 470);
             this.replaceWithSnapshot.Name = "replaceWithSnapshot";
             this.replaceWithSnapshot.Size = new System.Drawing.Size(284, 23);
             this.replaceWithSnapshot.TabIndex = 14;

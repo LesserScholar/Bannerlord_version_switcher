@@ -176,9 +176,8 @@ namespace Bannerlord_version_switcher
         static bool TryReadVersionFromAppmanifest(string path, out string version)
         {
             version = "";
-            var file = Path.Combine(path, AppmanifestFilename);
-            if (!File.Exists(file)) return false;
-            foreach (var line in File.ReadLines(file))
+            if (!File.Exists(path)) return false;
+            foreach (var line in File.ReadLines(path))
             {
                 Regex rx = new Regex(@"\s*""betakey""\s*""([\w\.]+)""");
                 Match match = rx.Match(line);
@@ -249,14 +248,21 @@ namespace Bannerlord_version_switcher
         {
             PopulateSnapshots();
             string currentVersion;
-            if (TryReadVersionFromAppmanifest(SteamPath, out currentVersion))
+            var appmanifestPath = Path.Combine(SteamPath, AppmanifestFilename);
+            if (!File.Exists(appmanifestPath))
+            {
+                installedVersionLabel.Text = "Can't find Bannerlord installation in given folder";
+                scanOk = false;
+                return;
+            }
+            if (TryReadVersionFromAppmanifest(appmanifestPath, out currentVersion))
             {
                 installedVersionLabel.Text = currentVersion;
                 scanOk = true;
             }
             else
             {
-                installedVersionLabel.Text = "Can't find Bannerlord installation in given folder";
+                installedVersionLabel.Text = "Bannerlord beta version is set to 'none'. Please select a beta version in Steam.";
                 scanOk = false;
             }
         }
@@ -393,6 +399,7 @@ namespace Bannerlord_version_switcher
         private void RestoreClicked(object sender, EventArgs e)
         {
             if (guardInteraction()) return;
+            if (SelectedVersion.Length == 0) return;
 
             if (IsSteamRunning())
             {
@@ -404,7 +411,7 @@ namespace Bannerlord_version_switcher
 
             var gamePath = Path.Combine(SteamPath, "common", GameDirName);
             var sourceGamePath = Path.Combine(SnapshotStorage, "common", String.Format(magicStringFormat, SelectedVersion, GameDirName));
-            
+
             ProgressBarAnimate();
             progressLabel.Text = "Copying";
 
@@ -427,7 +434,8 @@ namespace Bannerlord_version_switcher
                         File.Copy(SnapshotAppmanifestFromVersion(SnapshotStorage, SelectedVersion), appmanifestPath);
                         progressLabel.Text = "Restore Done";
                     }
-                    catch (Exception ex) {
+                    catch (Exception ex)
+                    {
                         progressLabel.Text = "Restore failed: " + ex.Message;
                     }
                 }
