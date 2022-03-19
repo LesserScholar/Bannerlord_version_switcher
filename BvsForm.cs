@@ -538,6 +538,13 @@ namespace Bannerlord_version_switcher
             }
             catch
             {
+                var sourceDir = SnapshotGameDirFromVersion(SnapshotStorage, InstalledVersion);
+                foreach (var d in snapshotDirs)
+                {
+                    var source = Path.Combine(sourceDir, d);
+                    if (Directory.Exists(source))
+                        Directory.Move(source, Path.Combine(steamGame, d));
+                }
                 MessageBox.Show("Version switcher was unable to move the game files. This is usually caused by another program keeping the files open. Close " +
                     "Visual Studio, Explorer.exe or any other programs that might have the files open.\n\nIf you are having hard time figuring what is holding the files, " +
                     "google \"process explorer which process is keeping file open\".");
