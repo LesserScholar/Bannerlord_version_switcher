@@ -179,7 +179,7 @@ namespace Bannerlord_version_switcher
             if (!File.Exists(path)) return false;
             foreach (var line in File.ReadLines(path))
             {
-                Regex rx = new Regex(@"\s*""betakey""\s*""([\w\.]+)""");
+                Regex rx = new Regex(@"\s*""BetaKey""\s*""([\w\.]+)""");
                 Match match = rx.Match(line);
 
                 if (match.Success)
